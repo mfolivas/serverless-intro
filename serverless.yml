@@ -1,0 +1,52 @@
+service: hello-serverless
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+
+  stage: ${opt:stage, 'dev'}
+
+  apiKeys:
+    - hello-${self:provider.stage}
+
+  environment:
+    partial_citations_table:
+      Ref: quotesTable
+  
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+
+      Resource:
+        - Fn::GetAtt: [quotesTable, Arn]
+        
+
+custom:
+  quotes_table: quotes-${self:provider.stage}
+
+functions:
+  hello:
+    handler: handler.hello
+    environment:
+      foo: bar
+      quotes_table: ${self:custom.quotes_table}
+    events:
+      - http:
+          path: /
+          method: get
+          private: true
+
+resources:
+  Resources:
+    quotesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.quotes_table}
